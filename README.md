@@ -180,11 +180,12 @@ Verificar o status dos processos:
 
 ```bash
 pm2 status
-
+```
 
 Visualizar os logs:
 ```bash
 pm2 logs <process_name>
+```
 Seguindo estas etapas, seu bot Rep4Rep deve estar funcionando continuamente e gerenciado de forma eficiente pelo PM2.
 
 ## Support
