@@ -13,7 +13,7 @@ Rep4Rep Bot for automating Steam comments and profile management.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/rep4rep-bot.git
+   git clone https://github.com/memendes123/h4rd.git
    cd rep4rep-bot
 
 
