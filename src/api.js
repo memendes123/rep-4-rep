@@ -20,30 +20,41 @@ class apiWrapper {
         return form
     }
 
+    async fetchWithJsonCheck(url, options) {
+        const response = await fetch(url, options);
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            console.error("Failed to parse JSON response:", text);
+            throw new Error("Failed to parse JSON response");
+        }
+    }
+
     async addSteamProfile(steamId) {
-        const response = await fetch(`${this.url}/user/steamprofiles/add`, {
+        const response = await this.fetchWithJsonCheck(`${this.url}/user/steamprofiles/add`, {
             method: 'post',
             body: this.buildForm({ steamProfile: steamId })
         });
-        return response.json();
+        return response;
     }
 
     async getSteamProfiles() {
-        const response = await fetch(`${this.url}/user/steamprofiles?apiToken=${this.token}`, {
+        const response = await this.fetchWithJsonCheck(`${this.url}/user/steamprofiles?apiToken=${this.token}`, {
             method: 'get'
         });
-        return response.json();
+        return response;
     }
 
     async getTasks(r4rSteamId) {
-        const response = await fetch(`${this.url}/tasks?apiToken=${this.token}&steamProfile=${r4rSteamId}`, {
+        const response = await this.fetchWithJsonCheck(`${this.url}/tasks?apiToken=${this.token}&steamProfile=${r4rSteamId}`, {
             method: 'get'
         });
-        return response.json();
+        return response;
     }
 
     async completeTask(taskId, commentId, authorSteamProfileId) {
-        const response = await fetch(`${this.url}/tasks/complete`, {
+        const response = await this.fetchWithJsonCheck(`${this.url}/tasks/complete`, {
             method: 'post',
             body: this.buildForm({ 
                 taskId: taskId,
@@ -51,7 +62,7 @@ class apiWrapper {
                 authorSteamProfileId: authorSteamProfileId
             })
         });
-        return response.json();
+        return response;
     }
 }
 
