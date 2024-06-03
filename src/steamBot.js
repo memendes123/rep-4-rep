@@ -64,6 +64,11 @@ export default (config) => {
                             client.captchaUrl = err.captchaurl
                             resolve()
                             break
+                        case 'AccountLoginDeniedThrottle':
+                            client.status = 5;  // Define a new status for throttling
+                            console.log('Login attempts throttled. Please try again later.');
+                            resolve();
+                            break;
                         default:
                             console.log(err)
                             reject(err)
