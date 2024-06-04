@@ -107,7 +107,8 @@ async function authAllProfiles() {
     for (const [i, profile] of profiles.entries()) {
         log(`Attempting to auth: ${profile.username} (${profile.steamId})`)
         let client = steamBot()
-        await client.steamLogin(profile.username, profile.password, null, profile.sharedSecret, null, JSON.parse(profile.cookies))
+        const savedProfile = await db.getProfileBySteamId(profile.steamId)
+        await client.steamLogin(profile.username, profile.password, null, profile.sharedSecret, null, savedProfile ? JSON.parse(savedProfile.cookies) : null)
         while (client.status !== 4 && !await client.isLoggedIn()) {
             let code = await client.getSteamGuardCode(profile.sharedSecret)
             switch (client.status) {
@@ -170,7 +171,8 @@ async function showAllProfiles() {
 async function addProfileSetup(accountName, password, sharedSecret) {
     let client = steamBot()
 
-    await client.steamLogin(accountName, password, null, sharedSecret, null);
+    const savedProfile = await db.getProfileBySteamId(accountName)
+    await client.steamLogin(accountName, password, null, sharedSecret, null, savedProfile ? JSON.parse(savedProfile.cookies) : null);
 
     if (client.status !== 4 && !await client.isLoggedIn()) {
         let code = await client.getSteamGuardCode(sharedSecret);
@@ -237,7 +239,7 @@ async function addProfilesFromFile() {
     for (const account of accounts) {
         const [username, password, sharedSecret] = account.split(':');
         await addProfileSetup(username, password, sharedSecret);
-        await sleep(60000); // Add delay to avoid throttling
+        await sleep(process.env.ADD_PROFILE_DELAY || 60000); // Add delay to avoid throttling
     }
     log('All profiles from file added')
 }
@@ -248,7 +250,7 @@ async function addProfilesAndRun() {
         const [username, password, sharedSecret] = account.split(':');
         await addProfileSetup(username, password, sharedSecret);
         await autoRun();
-        await sleep(60000); // Add delay to avoid throttling
+        await sleep(process.env.ADD_PROFILE_DELAY || 60000); // Add delay to avoid throttling
     }
     log('All profiles from file added and run completed')
 }
