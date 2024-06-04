@@ -106,8 +106,9 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
             break;
         }
         const randomComment = randomTask.requiredCommentText;
+        const targetSteamProfileId = randomTask.targetSteamProfileId;
         try {
-            await client.postComment(authorSteamProfileId, randomComment);
+            await client.postComment(targetSteamProfileId, randomComment);
             commentsPosted++;
             log(`[${profile.username}] additional comment posted successfully`, true);
             consecutiveFailures = 0; // Reset failures on success
