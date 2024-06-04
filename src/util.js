@@ -142,17 +142,38 @@ async function authAllProfiles() {
 }
 
 async function syncWithRep4rep(client) {
-    let steamId = await client.getSteamId()
-    let steamProfiles = await api.getSteamProfiles()
-    const exists = steamProfiles.some(steamProfile => steamProfile.steamId == steamId)
+    let steamId = await client.getSteamId();
+    let steamProfiles;
+
+    try {
+        steamProfiles = await api.getSteamProfiles();
+        console.log("steamProfiles:", steamProfiles); // Debugging log
+    } catch (error) {
+        console.error("Error fetching steamProfiles:", error);
+        return `Error fetching steamProfiles: ${error.message}`;
+    }
+
+    // Ensure steamProfiles is an array
+    if (!Array.isArray(steamProfiles)) {
+        console.error("Error: steamProfiles is not an array");
+        return "steamProfiles is not an array"; // Or handle the error appropriately
+    }
+
+    const exists = steamProfiles.some(steamProfile => steamProfile.steamId == steamId);
 
     if (!exists) {
-        let res = await api.addSteamProfile(steamId)
+        let res;
+        try {
+            res = await api.addSteamProfile(steamId);
+        } catch (error) {
+            console.error("Error adding steamProfile:", error);
+            return `Error adding steamProfile: ${error.message}`;
+        }
         if (res.error) {
-            return res.error
+            return res.error;
         }
     }
-    return true
+    return true;
 }
 
 async function showAllProfiles() {
@@ -234,21 +255,47 @@ async function promptForCode(username, client) {
 
 async function addProfilesFromFile() {
     const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\n').filter(Boolean);
-    for (const account of accounts) {
+    let accountCount = accounts.length;
+    log(`Starting to add ${accountCount} profiles from file.`);
+
+    for (const [index, account] of accounts.entries()) {
         const [username, password, sharedSecret] = account.split(':');
-        await addProfileSetup(username, password, sharedSecret);
-        await sleep(60000); // Add delay to avoid throttling
+        log(`Adding profile ${index + 1} of ${accountCount}: ${username}`);
+        
+        try {
+            await addProfileSetup(username, password, sharedSecret);
+            log(`Profile ${username} added successfully.`);
+        } catch (error) {
+            log(`Error adding profile ${username}: ${error.message}`);
+        }
+        
+        if (index !== accounts.length - 1) {
+            await sleep(3000); // Add delay to avoid throttling
+        }
     }
     log('All profiles from file added')
 }
 
 async function addProfilesAndRun() {
     const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\n').filter(Boolean);
-    for (const account of accounts) {
+    let accountCount = accounts.length;
+    log(`Starting to add and run ${accountCount} profiles from file.`);
+
+    for (const [index, account] of accounts.entries()) {
         const [username, password, sharedSecret] = account.split(':');
-        await addProfileSetup(username, password, sharedSecret);
-        await autoRun();
-        await sleep(60000); // Add delay to avoid throttling
+        log(`Adding and running profile ${index + 1} of ${accountCount}: ${username}`);
+        
+        try {
+            await addProfileSetup(username, password, sharedSecret);
+            await autoRun();
+            log(`Profile ${username} added and run successfully.`);
+        } catch (error) {
+            log(`Error adding and running profile ${username}: ${error.message}`);
+        }
+        
+        if (index !== accounts.length - 1) {
+            await sleep(3000); // Add delay to avoid throttling
+        }
     }
     log('All profiles from file added and run completed')
 }
