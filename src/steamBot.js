@@ -78,7 +78,7 @@ export default (config) => {
                     console.log('Cookies:', cookies)
 
                     // Save cookies after successful login
-                    await db.addOrUpdateProfile(accountName, password, community.steamID ? community.steamID.getSteamID64() : null, cookies)
+                    await db.updateCookies(community.steamID ? community.steamID.getSteamID64() : null, cookies)
 
                     community.getSteamUser(community.steamID || '', async (err, user) => {
                         if (err || !user) {
