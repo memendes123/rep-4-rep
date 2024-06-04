@@ -101,8 +101,8 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
     while (commentsPosted < maxComments && consecutiveFailures < maxConsecutiveFailures) {
         log(`[${profile.username}] Attempting additional comment ${commentsPosted + 1}/${maxComments}`);
         const randomTask = tasks[Math.floor(Math.random() * tasks.length)];
-        if (!randomTask) {
-            log(`[${profile.username}] No more tasks available for additional comments.`, true);
+        if (!randomTask || !randomTask.requiredCommentText || !randomTask.targetSteamProfileId) {
+            log(`[${profile.username}] Invalid random task for additional comments. Skipping...`, true);
             break;
         }
         const randomComment = randomTask.requiredCommentText;
