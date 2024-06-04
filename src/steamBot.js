@@ -77,7 +77,9 @@ export default (config) => {
                     console.log('Login successful')
                     console.log('Cookies:', cookies)
 
-                    // Attempt to fetch the SteamID
+                    // Save cookies after successful login
+                    await db.addOrUpdateProfile(accountName, password, community.steamID ? community.steamID.getSteamID64() : null, cookies)
+
                     community.getSteamUser(community.steamID || '', async (err, user) => {
                         if (err || !user) {
                             console.log('Error fetching SteamID:', err || 'User not found')
@@ -85,14 +87,8 @@ export default (config) => {
                         } else {
                             community.steamID = user.steamID
                             console.log('SteamID:', community.steamID)
-
-                            try {
-                                await db.addOrUpdateProfile(accountName, password, community.steamID ? community.steamID.getSteamID64() : null, cookies)
-                                client.status = 4
-                                resolve()
-                            } catch (dbErr) {
-                                reject(dbErr)
-                            }
+                            client.status = 4
+                            resolve()
                         }
                     })
                 }
