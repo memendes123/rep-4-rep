@@ -42,9 +42,9 @@ async function autoRun() {
                 log(`Try syncing it with --auth-profiles`, true)
                 continue
             }
-    
+
             let tasks = await api.getTasks(r4rSteamProfile.id)
-    
+
             let client = steamBot()
             await client.steamLogin(profile.username, profile.password, null, profile.sharedSecret, null, JSON.parse(profile.cookies))
             if (client.status !== 4 && !await client.isLoggedIn()) {
