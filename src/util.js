@@ -126,7 +126,7 @@ async function authAllProfiles() {
         log(`[${profile.username}] Authorized`)
 
         let res = await syncWithRep4rep(client)
-        if (res == true) {
+        if (res === true || res === 'Steam profile already added/exists on rep4rep.') {
             log(`[${profile.username}] Synced to Rep4Rep`, true)
         } else {
             log(`[${profile.username}] Failed to sync:`)
@@ -188,7 +188,7 @@ async function addProfileSetup(accountName, password, sharedSecret) {
     }
 
     let res = await syncWithRep4rep(client)
-    if (res == true) {
+    if (res === true || res === 'Steam profile already added/exists on rep4rep.') {
         log(`[${accountName}] Synced to Rep4Rep`, true)
     } else {
         log(`[${accountName}] Failed to sync:`)
