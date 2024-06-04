@@ -46,12 +46,12 @@ async function autoRun() {
             let tasks = await api.getTasks(r4rSteamProfile.id)
 
             let client = steamBot()
-            await client.steamLogin(profile.username, profile.password, null, profile.sharedSecret, null, JSON.parse(profile.cookies))
+            await loginWithRetries(client, profile);
             if (client.status !== 4 && !await client.isLoggedIn()) {
                 log(`[${profile.username}] is logged out. reAuth needed`, true)
                 continue
             } else {
-                await autoRunComments(profile, client, tasks, r4rSteamProfile.id, 10) // Change to 10 comments
+                await autoRunComments(profile, client, tasks, r4rSteamProfile.id, 10)
                 if (i !== profiles.length-1) {
                     await sleep(process.env.LOGIN_DELAY)
                 }
@@ -112,6 +112,28 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
     log(`[${profile.username}] done with posting comments`, true)
 }
 
+async function loginWithRetries(client, profile, maxRetries = 3) {
+    let attempts = 0;
+    while (attempts < maxRetries) {
+        try {
+            await client.steamLogin(profile.username, profile.password, null, profile.sharedSecret, null, JSON.parse(profile.cookies));
+            if (client.status === 4 || await client.isLoggedIn()) {
+                log(`[${profile.username}] login successful`);
+                return;
+            }
+        } catch (error) {
+            if (error.code === 502) {
+                log(`[${profile.username}] WebAPI error 502. Retrying...`);
+                await sleep(10000); // wait 10 seconds before retrying
+            } else {
+                throw error;
+            }
+        }
+        attempts++;
+    }
+    throw new Error(`[${profile.username}] login failed after ${maxRetries} attempts.`);
+}
+
 async function sleep(millis) {
     let sec = Math.round(millis / 1000)
     log(`[ ${sec}s delay ] ...`, true)
@@ -123,8 +145,8 @@ async function authAllProfiles() {
     for (const [i, profile] of profiles.entries()) {
         log(`Attempting to auth: ${profile.username} (${profile.steamId})`)
         let client = steamBot()
-        await client.steamLogin(profile.username, profile.password, null, profile.sharedSecret, null, JSON.parse(profile.cookies))
-        while (client.status !== 4 && !await client.isLoggedIn()) {
+        await loginWithRetries(client, profile);
+        if (client.status !== 4 && !await client.isLoggedIn()) {
             let code = await client.getSteamGuardCode(profile.sharedSecret)
             switch (client.status) {
                 case 1:
