@@ -1,304 +1,104 @@
-import fs from 'fs'
+import SteamCommunity from 'steamcommunity'
+import steamTotp from 'steam-totp'
 import db from './db.js'
-import api from './api.js'
-import steamBot from './steamBot.js'
-import { table } from 'table'
-import ReadLine from 'readline'
-import moment from 'moment'
-import 'dotenv/config'
 
-let rl = ReadLine.createInterface({
-    input: process.stdin,
-    output: process.stdout
-})
-
-const statusMessage = {
-    inactive: 0,
-    steamGuardRequired: 1,
-    steamGuardMobileRequired: 2,
-    captchaRequired: 3,
-    loggedIn: 4
-}
-
-function log(message, emptyLine = false) {
-    console.log(`[rep4rep-bot] ${message}`)
-    if (emptyLine) {
-        console.log()
+export default (config) => {
+    var client = {
+        status: 0,
+        captchaUrl: null,
+        emailDomain: null 
     }
-}
 
-async function autoRun() {
-    let profiles = await db.getAllProfiles()
-    let r4rProfiles = await api.getSteamProfiles()
+    var community = new SteamCommunity()
 
-    for (const [i, profile] of profiles.entries()) {
-        log(`Attempting to leave comments from: ${profile.username} (${profile.steamId})`)
+    client.isLoggedIn = async () => {
+        return new Promise(function(resolve, reject){
+            community.loggedIn(function(err, loggedIn, familyView) {
+                if (err) { return reject(err) }
+                resolve(loggedIn)
+            })
+       })
+    }
 
-        let hours = moment().diff(moment(profile.lastComment), 'hours');
-        if (!profile.lastComment || hours >= 24) {
-            let r4rSteamProfile = r4rProfiles.find(r4rProfile => r4rProfile['steamId'] == profile.steamId)
-            if (!r4rSteamProfile) {
-                log(`[${profile.username}] steamProfile doesn't exist on rep4rep`)
-                log(`Try syncing it with --auth-profiles`, true)
-                continue
-            }
+    client.getSteamId = async () => {
+        return community.steamID ? community.steamID.getSteamID64() : null
+    }
 
-            let tasks = await api.getTasks(r4rSteamProfile.id)
-
-            let client = steamBot()
-            await client.steamLogin(profile.username, profile.password, null, profile.sharedSecret, null, JSON.parse(profile.cookies))
-            if (client.status !== 4 && !await client.isLoggedIn()) {
-                log(`[${profile.username}] is logged out. reAuth needed`, true)
-                continue
-            } else {
-                await autoRunComments(profile, client, tasks, r4rSteamProfile.id, 2)
-                if (i !== profiles.length-1) {
-                    await sleep(process.env.LOGIN_DELAY)
+    client.postComment = async (steamId, commentText) => {
+        return new Promise((resolve, reject) => {
+            community.postUserComment(steamId, commentText, async (err) => {
+                if (err) {
+                    reject(err)
                 }
-                continue
-            }
-        } else {
-            log(`[${profile.username}] is not ready yet`)
-            log(`[${profile.username}] try again in: ${Math.round(24-hours)} hours`, true)
-            continue
-        }
-    }
-
-    log('autoRun completed')
-}
-
-async function autoRunComments(profile, client, tasks, authorSteamProfileId, maxAttempts = 2) {
-    let attempts = 0
-
-    for (const task of tasks) {
-        if (attempts == maxAttempts) {
-            continue
-        }
-        log(`[${profile.username}] posting comment:`)
-        log(`${task.requiredCommentText} > ${task.targetSteamProfileName}`, true)
-        await client.postComment(task.targetSteamProfileId, task.requiredCommentText)
-        .then(async () => {
-            await api.completeTask(task.taskId, task.requiredCommentId, authorSteamProfileId)
-            await db.updateLastComment(profile.steamId)
-            log(`[${profile.username}] comment posted and marked as completed`, true)
-            attempts = 0 // reset attempts on successful comment
+                resolve()
+            })
         })
-        .catch(err => {
-            attempts++
-            log(`[${profile.username}] failed to post comment`, true)
+    }
+
+    client.steamLogin = async (accountName, password, authCode, sharedSecret, captcha, cookies) => {
+        if (cookies) {
+            community.setCookies(cookies)
+        }
+
+        return new Promise((resolve, reject) => {
+            community.login({
+                accountName: accountName,
+                password: password,
+                authCode: authCode,
+                twoFactorCode: sharedSecret ? steamTotp.generateAuthCode(sharedSecret) : null,
+                captcha: captcha
+            }, async (err, sessionID, cookies, steamguard) => {
+                if (err) {
+                    switch (err.message) {
+                        case 'SteamGuard':
+                            client.status = 1
+                            client.emailDomain = err.emaildomain
+                            resolve()
+                            break
+                        case 'SteamGuardMobile':
+                            client.status = 2
+                            resolve()
+                            break
+                        case 'CAPTCHA':
+                            client.status = 3
+                            client.captchaUrl = err.captchaurl
+                            resolve()
+                            break
+                        case 'AccountLoginDeniedThrottle':
+                            client.status = 5;  // Define a new status for throttling
+                            console.log('Login attempts throttled. Please try again later.');
+                            resolve();
+                            break;
+                        default:
+                            console.log(err)
+                            reject(err)
+                    }
+                } else {
+                    console.log('Login successful')
+                    console.log('Cookies:', cookies)
+
+                    // Save cookies after successful login
+                    await db.addOrUpdateProfile(accountName, password, community.steamID ? community.steamID.getSteamID64() : null, cookies)
+
+                    community.getSteamUser(community.steamID || '', async (err, user) => {
+                        if (err || !user) {
+                            console.log('Error fetching SteamID:', err || 'User not found')
+                            reject(new Error('SteamID not found'))
+                        } else {
+                            community.steamID = user.steamID
+                            console.log('SteamID:', community.steamID)
+                            client.status = 4
+                            resolve()
+                        }
+                    })
+                }
+            })
         })
-
-        if (attempts !== maxAttempts) {
-            await sleep(process.env.COMMENT_DELAY)
-        }
     }
 
-    log(`[${profile.username}] done with posting comments`, true)
+    client.getSteamGuardCode = async (sharedSecret) => {
+        return steamTotp.generateAuthCode(sharedSecret);
+    }
+
+    return client
 }
-
-async function sleep(millis) {
-    let sec = Math.round(millis / 1000)
-    log(`[ ${sec}s delay ] ...`, true)
-    return new Promise(resolve => setTimeout(resolve, millis))
-}
-
-async function authAllProfiles() {
-    let profiles = await db.getAllProfiles()
-    for (const [i, profile] of profiles.entries()) {
-        log(`Attempting to auth: ${profile.username} (${profile.steamId})`)
-        let client = steamBot()
-        await client.steamLogin(profile.username, profile.password, null, profile.sharedSecret, null, JSON.parse(profile.cookies))
-        while (client.status !== 4 && !await client.isLoggedIn()) {
-            let code = await client.getSteamGuardCode(profile.sharedSecret)
-            switch (client.status) {
-                case 1:
-                    await client.steamLogin(profile.username, profile.password, code)
-                    break
-                case 2:
-                    await client.steamLogin(profile.username, profile.password, null, code)
-                    break
-                case 3:
-                    await client.steamLogin(profile.username, profile.password, null, null, code)
-                    break
-            }
-        }
-
-        log(`[${profile.username}] Authorized`)
-
-        let res = await syncWithRep4rep(client)
-        if (res === true || res === 'Steam profile already added/exists on rep4rep.') {
-            log(`[${profile.username}] Synced to Rep4Rep`, true)
-        } else {
-            log(`[${profile.username}] Failed to sync:`)
-            log(res, true)
-        }
-
-        if (i !== profiles.length-1) {
-            await sleep(process.env.LOGIN_DELAY)
-        }
-    }
-
-    log(`authProfiles completed`)
-}
-
-async function syncWithRep4rep(client) {
-    let steamId = await client.getSteamId();
-    let steamProfiles;
-
-    try {
-        steamProfiles = await api.getSteamProfiles();
-        console.log("steamProfiles:", steamProfiles); // Debugging log
-    } catch (error) {
-        console.error("Error fetching steamProfiles:", error);
-        return `Error fetching steamProfiles: ${error.message}`;
-    }
-
-    // Ensure steamProfiles is an array
-    if (!Array.isArray(steamProfiles)) {
-        console.error("Error: steamProfiles is not an array");
-        return "steamProfiles is not an array"; // Or handle the error appropriately
-    }
-
-    const exists = steamProfiles.some(steamProfile => steamProfile.steamId == steamId);
-
-    if (!exists) {
-        let res;
-        try {
-            res = await api.addSteamProfile(steamId);
-        } catch (error) {
-            console.error("Error adding steamProfile:", error);
-            return `Error adding steamProfile: ${error.message}`;
-        }
-        if (res.error) {
-            return res.error;
-        }
-    }
-    return true;
-}
-
-async function showAllProfiles() {
-    let profiles = await db.getAllProfiles()
-    let data = [
-        ['steamId', 'username', 'lastComment']
-    ]
-    profiles.forEach(profile => {
-        data.push([profile.steamId, profile.username, profile.lastComment])
-    })
-    
-    console.log(table(data))
-}
-
-async function addProfileSetup(accountName, password, sharedSecret) {
-    let client = steamBot()
-
-    await client.steamLogin(accountName, password, null, sharedSecret, null);
-
-    if (client.status !== 4 && !await client.isLoggedIn()) {
-        let code = await client.getSteamGuardCode(sharedSecret);
-        switch (client.status) {
-            case 1:
-                await addProfileSetup(accountName, password, code)
-                return
-            case 2:
-                await addProfileSetup(accountName, password, null, code)
-                return
-            case 3:
-                await addProfileSetup(accountName, password, null, null, code)
-                return
-        }
-    }
-
-    let res = await syncWithRep4rep(client)
-    if (res === true || res === 'Steam profile already added/exists on rep4rep.') {
-        log(`[${accountName}] Synced to Rep4Rep`, true)
-    } else {
-        log(`[${accountName}] Failed to sync:`)
-        log(res, true)
-    }
-    
-    log(`[${accountName}] Profile added`)
-}
-
-async function removeProfile(username) {
-    let res = await db.removeProfile(username)
-    if (res.changes == 0) {
-        log('profile not found', true)
-    } else {
-        log('profile removed', true)
-    }
-    process.exit()
-}
-
-async function promptForCode(username, client) {
-    switch (client.status) {
-        case 1:
-            log(`[${username}] steamGuard code required  (${client.emailDomain})`)
-            break
-        case 2:
-            log(`[${username}] steamGuardMobile code required`)
-            break
-        case 3:
-            log(`[${username}] captcha required`)
-            log(`URL: ${client.captchaUrl}`)
-            break
-        default:
-            console.log('fatal?')
-            console.log(client.status)
-            process.exit()
-    }
-
-    let res =  await new Promise(resolve => {
-        rl.question('>> ', resolve)
-    })
-    return res
-}
-
-async function addProfilesFromFile() {
-    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\n').filter(Boolean);
-    let accountCount = accounts.length;
-    log(`Starting to add ${accountCount} profiles from file.`);
-
-    for (const [index, account] of accounts.entries()) {
-        const [username, password, sharedSecret] = account.split(':');
-        log(`Adding profile ${index + 1} of ${accountCount}: ${username}`);
-        
-        try {
-            await addProfileSetup(username, password, sharedSecret);
-            log(`Profile ${username} added successfully.`);
-        } catch (error) {
-            log(`Error adding profile ${username}: ${error.message}`);
-        }
-        
-        if (index !== accounts.length - 1) {
-            await sleep(3000); // Add delay to avoid throttling
-        }
-    }
-    log('All profiles from file added')
-}
-
-async function addProfilesAndRun() {
-    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\n').filter(Boolean);
-    let accountCount = accounts.length;
-    log(`Starting to add and run ${accountCount} profiles from file.`);
-
-    for (const [index, account] of accounts.entries()) {
-        const [username, password, sharedSecret] = account.split(':');
-        log(`Adding and running profile ${index + 1} of ${accountCount}: ${username}`);
-        
-        try {
-            await addProfileSetup(username, password, sharedSecret);
-            await autoRun();
-            log(`Profile ${username} added and run successfully.`);
-        } catch (error) {
-            log(`Error adding and running profile ${username}: ${error.message}`);
-        }
-        
-        if (index !== accounts.length - 1) {
-            await sleep(3000); // Add delay to avoid throttling
-        }
-    }
-    log('All profiles from file added and run completed')
-}
-
-export { log, statusMessage, showAllProfiles, addProfileSetup, authAllProfiles, removeProfile, autoRun, addProfilesFromFile, addProfilesAndRun }
-s
