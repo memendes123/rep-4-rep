@@ -44,6 +44,10 @@ async function autoRun() {
             }
 
             let tasks = await api.getTasks(r4rSteamProfile.id)
+            if (!tasks || tasks.length === 0) {
+                log(`[${profile.username}] No tasks found for the profile. Skipping...`, true)
+                continue
+            }
 
             let client = steamBot()
             await loginWithRetries(client, profile);
@@ -86,7 +90,7 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
             commentsPosted++;
             consecutiveFailures = 0; // Reset failures on success
         } catch (err) {
-            log(`[${profile.username}] failed to post comment`, true);
+            log(`[${profile.username}] failed to post comment: ${err.message}`, true);
             consecutiveFailures++;
         }
 
@@ -96,14 +100,19 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
 
     while (commentsPosted < maxComments && consecutiveFailures < maxConsecutiveFailures) {
         log(`[${profile.username}] Attempting additional comment ${commentsPosted + 1}/${maxComments}`);
-        const randomComment = tasks[Math.floor(Math.random() * tasks.length)].requiredCommentText;
+        const randomTask = tasks[Math.floor(Math.random() * tasks.length)];
+        if (!randomTask) {
+            log(`[${profile.username}] No more tasks available for additional comments.`, true);
+            break;
+        }
+        const randomComment = randomTask.requiredCommentText;
         try {
             await client.postComment(authorSteamProfileId, randomComment);
             commentsPosted++;
             log(`[${profile.username}] additional comment posted successfully`, true);
             consecutiveFailures = 0; // Reset failures on success
         } catch (err) {
-            log(`[${profile.username}] failed to post additional comment`, true);
+            log(`[${profile.username}] failed to post additional comment: ${err.message}`, true);
             consecutiveFailures++;
         }
         await sleep(process.env.COMMENT_DELAY);
