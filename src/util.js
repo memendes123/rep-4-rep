@@ -237,6 +237,7 @@ async function addProfilesFromFile() {
     for (const account of accounts) {
         const [username, password, sharedSecret] = account.split(':');
         await addProfileSetup(username, password, sharedSecret);
+        await sleep(60000); // Add delay to avoid throttling
     }
     log('All profiles from file added')
 }
@@ -247,6 +248,7 @@ async function addProfilesAndRun() {
         const [username, password, sharedSecret] = account.split(':');
         await addProfileSetup(username, password, sharedSecret);
         await autoRun();
+        await sleep(60000); // Add delay to avoid throttling
     }
     log('All profiles from file added and run completed')
 }
