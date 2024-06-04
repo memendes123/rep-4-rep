@@ -51,7 +51,7 @@ async function autoRun() {
                 log(`[${profile.username}] is logged out. reAuth needed`, true)
                 continue
             } else {
-                await autoRunComments(profile, client, tasks, r4rSteamProfile.id, 2)
+                await autoRunComments(profile, client, tasks, r4rSteamProfile.id, 10) // Change to 10 comments
                 if (i !== profiles.length-1) {
                     await sleep(process.env.LOGIN_DELAY)
                 }
@@ -67,30 +67,46 @@ async function autoRun() {
     log('autoRun completed')
 }
 
-async function autoRunComments(profile, client, tasks, authorSteamProfileId, maxAttempts = 2) {
-    let attempts = 0
+async function autoRunComments(profile, client, tasks, authorSteamProfileId, maxComments = 10) {
+    let commentsPosted = 0
+    let taskIndex = 0
+    let consecutiveFailures = 0
+    const maxConsecutiveFailures = 3
 
-    for (const task of tasks) {
-        if (attempts == maxAttempts) {
-            continue
-        }
+    while (commentsPosted < maxComments && taskIndex < tasks.length && consecutiveFailures < maxConsecutiveFailures) {
+        const task = tasks[taskIndex];
         log(`[${profile.username}] posting comment:`)
         log(`${task.requiredCommentText} > ${task.targetSteamProfileName}`, true)
-        await client.postComment(task.targetSteamProfileId, task.requiredCommentText)
-        .then(async () => {
-            await api.completeTask(task.taskId, task.requiredCommentId, authorSteamProfileId)
-            await db.updateLastComment(profile.steamId)
-            log(`[${profile.username}] comment posted and marked as completed`, true)
-            attempts = 0 // reset attempts on successful comment
-        })
-        .catch(err => {
-            attempts++
-            log(`[${profile.username}] failed to post comment`, true)
-        })
 
-        if (attempts !== maxAttempts) {
-            await sleep(process.env.COMMENT_DELAY)
+        try {
+            await client.postComment(task.targetSteamProfileId, task.requiredCommentText);
+            await api.completeTask(task.taskId, task.requiredCommentId, authorSteamProfileId);
+            await db.updateLastComment(profile.steamId);
+            log(`[${profile.username}] comment posted and marked as completed`, true);
+            commentsPosted++;
+            consecutiveFailures = 0; // Reset failures on success
+        } catch (err) {
+            log(`[${profile.username}] failed to post comment`, true);
+            consecutiveFailures++;
         }
+
+        await sleep(process.env.COMMENT_DELAY);
+        taskIndex++;
+    }
+
+    while (commentsPosted < maxComments && consecutiveFailures < maxConsecutiveFailures) {
+        log(`[${profile.username}] Attempting additional comment ${commentsPosted + 1}/${maxComments}`);
+        const randomComment = tasks[Math.floor(Math.random() * tasks.length)].requiredCommentText;
+        try {
+            await client.postComment(authorSteamProfileId, randomComment);
+            commentsPosted++;
+            log(`[${profile.username}] additional comment posted successfully`, true);
+            consecutiveFailures = 0; // Reset failures on success
+        } catch (err) {
+            log(`[${profile.username}] failed to post additional comment`, true);
+            consecutiveFailures++;
+        }
+        await sleep(process.env.COMMENT_DELAY);
     }
 
     log(`[${profile.username}] done with posting comments`, true)
@@ -191,32 +207,54 @@ async function showAllProfiles() {
 async function addProfileSetup(accountName, password, sharedSecret) {
     let client = steamBot()
 
-    await client.steamLogin(accountName, password, null, sharedSecret, null);
+    let attempts = 0;
+    const maxAttempts = 5;
+    let success = false;
 
-    if (client.status !== 4 && !await client.isLoggedIn()) {
-        let code = await client.getSteamGuardCode(sharedSecret);
-        switch (client.status) {
-            case 1:
-                await addProfileSetup(accountName, password, code)
-                return
-            case 2:
-                await addProfileSetup(accountName, password, null, code)
-                return
-            case 3:
-                await addProfileSetup(accountName, password, null, null, code)
-                return
+    while (attempts < maxAttempts && !success) {
+        try {
+            await client.steamLogin(accountName, password, null, sharedSecret, null);
+
+            if (client.status !== 4 && !await client.isLoggedIn()) {
+                let code = await client.getSteamGuardCode(sharedSecret);
+                switch (client.status) {
+                    case 1:
+                        await addProfileSetup(accountName, password, code)
+                        return
+                    case 2:
+                        await addProfileSetup(accountName, password, null, code)
+                        return
+                    case 3:
+                        await addProfileSetup(accountName, password, null, null, code)
+                        return
+                }
+            }
+
+            let res = await syncWithRep4rep(client)
+            if (res === true || res === 'Steam profile already added/exists on rep4rep.') {
+                log(`[${accountName}] Synced to Rep4Rep`, true)
+            } else {
+                log(`[${accountName}] Failed to sync:`)
+                log(res, true)
+            }
+
+            log(`[${accountName}] Profile added`)
+            success = true;
+        } catch (error) {
+            attempts++;
+            if (error.message.includes('RateLimitExceeded')) {
+                log(`Rate limit exceeded for ${accountName}. Waiting before retrying...`);
+                await sleep(60000); // wait 1 minute before retrying
+            } else {
+                log(`Error adding profile ${accountName}: ${error.message}`);
+                break;
+            }
         }
     }
 
-    let res = await syncWithRep4rep(client)
-    if (res === true || res === 'Steam profile already added/exists on rep4rep.') {
-        log(`[${accountName}] Synced to Rep4Rep`, true)
-    } else {
-        log(`[${accountName}] Failed to sync:`)
-        log(res, true)
+    if (!success) {
+        log(`Failed to add profile ${accountName} after ${maxAttempts} attempts.`);
     }
-    
-    log(`[${accountName}] Profile added`)
 }
 
 async function removeProfile(username) {
@@ -270,7 +308,7 @@ async function addProfilesFromFile() {
         }
         
         if (index !== accounts.length - 1) {
-            await sleep(3000); // Add delay to avoid throttling
+            await sleep(60000); // Add delay to avoid throttling
         }
     }
     log('All profiles from file added')
@@ -294,7 +332,7 @@ async function addProfilesAndRun() {
         }
         
         if (index !== accounts.length - 1) {
-            await sleep(3000); // Add delay to avoid throttling
+            await sleep(60000); // Add delay to avoid throttling
         }
     }
     log('All profiles from file added and run completed')
