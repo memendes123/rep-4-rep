@@ -76,6 +76,7 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
     let taskIndex = 0
     let consecutiveFailures = 0
     const maxConsecutiveFailures = 3
+    let completedTasks = new Set()
 
     while (commentsPosted < maxComments && taskIndex < tasks.length && consecutiveFailures < maxConsecutiveFailures) {
         const task = tasks[taskIndex];
@@ -88,6 +89,7 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
             await db.updateLastComment(profile.steamId);
             log(`[${profile.username}] comment posted and marked as completed`, true);
             commentsPosted++;
+            completedTasks.add(task.taskId);
             consecutiveFailures = 0; // Reset failures on success
         } catch (err) {
             log(`[${profile.username}] failed to post comment: ${err.message}`, true);
@@ -100,7 +102,7 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
 
     while (commentsPosted < maxComments && consecutiveFailures < maxConsecutiveFailures) {
         log(`[${profile.username}] Attempting additional comment ${commentsPosted + 1}/${maxComments}`);
-        const randomTask = tasks[Math.floor(Math.random() * tasks.length)];
+        const randomTask = tasks.filter(t => !completedTasks.has(t.taskId))[Math.floor(Math.random() * tasks.length)];
         if (!randomTask || !randomTask.requiredCommentText || !randomTask.targetSteamProfileId) {
             log(`[${profile.username}] Invalid random task for additional comments. Skipping...`, true);
             break;
@@ -109,6 +111,7 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
         const targetSteamProfileId = randomTask.targetSteamProfileId;
         try {
             await client.postComment(targetSteamProfileId, randomComment);
+            await api.completeTask(randomTask.taskId, randomTask.requiredCommentId, authorSteamProfileId); // Mark additional comments as completed
             commentsPosted++;
             log(`[${profile.username}] additional comment posted successfully`, true);
             consecutiveFailures = 0; // Reset failures on success
