@@ -1,23 +1,20 @@
-import 'dotenv/config'
-import fetch from 'node-fetch'
-import { FormData, File, Blob } from 'formdata-node'
+import 'dotenv/config';
+import fetch from 'node-fetch';
+import { FormData } from 'formdata-node';
 
 class apiWrapper {
-    url;
-    token;
-
     constructor() {
-        this.url = 'https://rep4rep.com/pub-api'
-        this.token = process.env.REP4REP_KEY
+        this.url = 'https://rep4rep.com/pub-api';
+        this.token = process.env.REP4REP_KEY;
     }
 
     buildForm(params) {
-        let form = new FormData()
-        form.set('apiToken', this.token)
-        for (const [k, v] of Object.entries(params)) {
-            form.set(k, v)
+        const form = new FormData();
+        form.set('apiToken', this.token);
+        for (const [key, value] of Object.entries(params)) {
+            form.set(key, value);
         }
-        return form
+        return form;
     }
 
     async fetchWithJsonCheck(url, options) {
@@ -66,5 +63,5 @@ class apiWrapper {
     }
 }
 
-const instance = new apiWrapper()
-export { instance as default }
+const instance = new apiWrapper();
+export { instance as default };
