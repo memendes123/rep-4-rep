@@ -1,12 +1,12 @@
-import parseArgs from 'minimist'
-import 'dotenv/config'
-import steamBot from './src/steamBot.js'
-import db from './src/db.js'
-import api from './src/api.js'
-import { log, showAllProfiles, addProfileSetup, authAllProfiles, removeProfile, autoRun, addProfilesFromFile, addProfilesAndRun } from './src/util.js'
+import parseArgs from 'minimist';
+import 'dotenv/config';
+import steamBot from './src/steamBot.js';
+import db from './src/db.js';
+import api from './src/api.js';
+import { log, showAllProfiles, addProfileSetup, authAllProfiles, removeProfile, autoRun, addProfilesFromFile, addProfilesAndRun, checkAndSyncProfiles } from './src/util.js';
 
-var argv = parseArgs(process.argv.slice(2))
-await db.init()
+var argv = parseArgs(process.argv.slice(2));
+await db.init();
 // autoRun:
 //  --run
 
@@ -28,33 +28,40 @@ await db.init()
 // add profiles from file and run:
 //  --add-profiles-and-run
 
+// check and sync profiles:
+//  --check-and-sync-profiles
+
 if (argv['run']) {
-    await autoRun()
+    await autoRun();
 }
 
 if (argv['profiles']) {
-    await showAllProfiles()
+    await showAllProfiles();
 }
 
 if (argv['auth-profiles']) {
-    await authAllProfiles()
+    await authAllProfiles();
 }
 
 if (argv['add-profile']) {
-    let profile = argv['add-profile'].split(':')
-    await addProfileSetup(profile[0], profile[1], profile[2])
+    let profile = argv['add-profile'].split(':');
+    await addProfileSetup(profile[0], profile[1], profile[2]);
 }
 
 if (argv['remove-profile']) {
-    await removeProfile(argv['remove-profile'])
+    await removeProfile(argv['remove-profile']);
 }
 
 if (argv['add-profiles-from-file']) {
-    await addProfilesFromFile()
+    await addProfilesFromFile();
 }
 
 if (argv['add-profiles-and-run']) {
-    await addProfilesAndRun()
+    await addProfilesAndRun();
 }
 
-process.exit()
+if (argv['check-and-sync-profiles']) {
+    await checkAndSyncProfiles();
+}
+
+process.exit();
