@@ -248,7 +248,7 @@ async function showAllProfiles() {
     profiles.forEach(profile => {
         data.push([profile.steamId, profile.username, profile.lastComment]);
     });
-    
+
     console.log(table(data));
 }
 
@@ -333,7 +333,7 @@ async function promptForCode(username, client) {
             process.exit();
     }
 
-    let res =  await new Promise(resolve => {
+    let res = await new Promise(resolve => {
         rl.question('>> ', resolve);
     });
     return res;
@@ -347,14 +347,14 @@ async function addProfilesFromFile() {
     for (const [index, account] of accounts.entries()) {
         const [username, password, sharedSecret] = account.split(':');
         log(`Adding profile ${index + 1} of ${accountCount}: ${username}`);
-        
+
         try {
             await addProfileSetup(username, password, sharedSecret);
             log(`Profile ${username} added successfully.`);
         } catch (error) {
             log(`Error adding profile ${username}: ${error.message}`);
         }
-        
+
         if (index !== accounts.length - 1) {
             await sleep(60000); // Add delay to avoid throttling
         }
@@ -370,7 +370,7 @@ async function addProfilesAndRun() {
     for (const [index, account] of accounts.entries()) {
         const [username, password, sharedSecret] = account.split(':');
         log(`Adding and running profile ${index + 1} of ${accountCount}: ${username}`);
-        
+
         try {
             await addProfileSetup(username, password, sharedSecret);
             await autoRun();
@@ -378,7 +378,7 @@ async function addProfilesAndRun() {
         } catch (error) {
             log(`Error adding and running profile ${username}: ${error.message}`);
         }
-        
+
         if (index !== accounts.length - 1) {
             await sleep(60000); // Add delay to avoid throttling
         }
@@ -388,27 +388,54 @@ async function addProfilesAndRun() {
 
 async function checkAndSyncProfiles() {
     let profiles = await db.getAllProfiles();
+    for (const profile of profiles) {
+        let client = steamBot();
+        await loginWithRetries(client, profile);
+        if (client.status !== 4 && !await client.isLoggedIn()) {
+            let code = await client.getSteamGuardCode(profile.sharedSecret);
+            switch (client.status) {
+                case 1:
+                    await client.steamLogin(profile.username, profile.password, code);
+                    break;
+                case 2:
+                    await client.steamLogin(profile.username, profile.password, null, code);
+                    break;
+                case 3:
+                    await client.steamLogin(profile.username, profile.password, null, null, code);
+                    break;
+            }
+        }
+
+        let res = await syncWithRep4rep(client);
+        if (res === true || res === 'Steam profile already added/exists on rep4rep.') {
+            log(`[${profile.username}] Synced to Rep4Rep`, true);
+        } else {
+            log(`[${profile.username}] Failed to sync:`);
+            log(res, true);
+        }
+    }
+    log('Check and sync completed');
+}
+
+async function checkCommentAvailability() {
+    let profiles = await db.getAllProfiles();
     let r4rProfiles = await api.getSteamProfiles();
+    const maxCommentsPerDay = 10; // Defina o limite diário de comentários aqui
 
     for (const profile of profiles) {
         let r4rSteamProfile = r4rProfiles.find(r4rProfile => r4rProfile['steamId'] == profile.steamId);
         if (!r4rSteamProfile) {
-            log(`Syncing profile: ${profile.username} (${profile.steamId})`);
-            let client = steamBot();
-            await loginWithRetries(client, profile);
-            let res = await syncWithRep4rep(client);
-            if (res === true || res === 'Steam profile already added/exists on rep4rep.') {
-                log(`[${profile.username}] Synced to Rep4Rep`, true);
-            } else {
-                log(`[${profile.username}] Failed to sync:`);
-                log(res, true);
-            }
-        } else {
-            log(`Profile already synced: ${profile.username} (${profile.steamId})`, true);
+            log(`[${profile.username}] steamProfile não existe no rep4rep`);
+            continue;
         }
+
+        let hoursSinceLastComment = moment().diff(moment(profile.lastComment), 'hours');
+        let commentsRemaining = (hoursSinceLastComment >= 24) ? maxCommentsPerDay : Math.max(0, maxCommentsPerDay - Math.floor(hoursSinceLastComment / 24 * maxCommentsPerDay));
+
+        log(`[${profile.username}] pode fazer mais ${commentsRemaining} comentários nas próximas 24 horas.`);
     }
 
-    log('Check and sync completed');
+    log('Verificação de disponibilidade de comentários concluída');
 }
 
-export { log, statusMessage, showAllProfiles, addProfileSetup, authAllProfiles, removeProfile, autoRun, addProfilesFromFile, addProfilesAndRun, checkAndSyncProfiles };
+export { log, statusMessage, showAllProfiles, addProfileSetup, authAllProfiles, removeProfile, autoRun, addProfilesFromFile, addProfilesAndRun, checkAndSyncProfiles, checkCommentAvailability };
