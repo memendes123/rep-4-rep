@@ -71,6 +71,11 @@ Authenticate all profiles:
 node main.js --auth-profiles
 ```
 
+check if profiles are added and synchronized with rep4rep
+```bash
+node main.js --check-and-sync-profiles
+```
+
 Add a single profile:
 ```bash
 node main.js --add-profile username:password:shared_secret
