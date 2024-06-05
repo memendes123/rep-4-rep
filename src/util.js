@@ -80,12 +80,6 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
 
     while (commentsPosted < maxComments && taskIndex < tasks.length && consecutiveFailures < maxConsecutiveFailures) {
         const task = tasks[taskIndex];
-        if (!task || !task.requiredCommentText || !task.targetSteamProfileName) {
-            log(`[${profile.username}] Invalid task data. Skipping...`, true);
-            taskIndex++;
-            continue;
-        }
-
         log(`[${profile.username}] posting comment:`)
         log(`${task.requiredCommentText} > ${task.targetSteamProfileName}`, true)
 
@@ -108,18 +102,11 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
 
     while (commentsPosted < maxComments && consecutiveFailures < maxConsecutiveFailures) {
         log(`[${profile.username}] Attempting additional comment ${commentsPosted + 1}/${maxComments}`);
-        const availableTasks = tasks.filter(t => !completedTasks.has(t.taskId));
-        if (availableTasks.length === 0) {
-            log(`[${profile.username}] No valid tasks available for additional comments. Skipping...`, true);
-            break;
-        }
-
-        const randomTask = availableTasks[Math.floor(Math.random() * availableTasks.length)];
+        const randomTask = tasks.filter(t => !completedTasks.has(t.taskId))[Math.floor(Math.random() * tasks.length)];
         if (!randomTask || !randomTask.requiredCommentText || !randomTask.targetSteamProfileId) {
             log(`[${profile.username}] Invalid random task for additional comments. Skipping...`, true);
             break;
         }
-
         const randomComment = randomTask.requiredCommentText;
         const targetSteamProfileId = randomTask.targetSteamProfileId;
         try {
