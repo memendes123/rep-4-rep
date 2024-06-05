@@ -79,6 +79,11 @@ check if profiles are added and synchronized with rep4rep
 node main.js --check-and-sync-profiles
 ```
 
+Verify is accounts can comment:
+```bash
+node main.js --check-comment-availability
+```
+
 Add a single profile:
 ```bash
 node main.js --add-profile username:password:shared_secret
