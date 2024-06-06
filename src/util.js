@@ -340,7 +340,7 @@ async function promptForCode(username, client) {
 }
 
 async function addProfilesFromFile() {
-    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\\n').filter(Boolean);
+    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\n').filter(Boolean);
     let accountCount = accounts.length;
     log(`Starting to add ${accountCount} profiles from file.`);
 
@@ -349,6 +349,9 @@ async function addProfilesFromFile() {
         log(`Adding profile ${index + 1} of ${accountCount}: ${username}`);
         
         try {
+            if (!username || !password || !sharedSecret) {
+                throw new Error(`Invalid account format for ${account}`);
+            }
             await addProfileSetup(username, password, sharedSecret);
             log(`Profile ${username} added successfully.`);
         } catch (error) {
@@ -363,7 +366,7 @@ async function addProfilesFromFile() {
 }
 
 async function addProfilesAndRun() {
-    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\\n').filter(Boolean);
+    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\n').filter(Boolean);
     let accountCount = accounts.length;
     log(`Starting to add and run ${accountCount} profiles from file.`);
 
@@ -372,6 +375,9 @@ async function addProfilesAndRun() {
         log(`Adding and running profile ${index + 1} of ${accountCount}: ${username}`);
         
         try {
+            if (!username || !password || !sharedSecret) {
+                throw new Error(`Invalid account format for ${account}`);
+            }
             await addProfileSetup(username, password, sharedSecret);
             await autoRun();
             log(`Profile ${username} added and run successfully.`);
@@ -404,9 +410,8 @@ async function checkAndSyncProfiles() {
 async function checkCommentAvailability() {
     let profiles = await db.getAllProfiles();
     for (const profile of profiles) {
-        let hours = profile.lastComment ? moment().diff(moment(profile.lastComment), 'hours') : 24;
-        let commentsAvailable = (hours >= 24) ? 10 : Math.max(10 - Math.floor(hours / 2.4), 0); // Assuming a max of 10 comments per 24 hours, distributed equally
-
+        let commentsInLast24Hours = await db.getCommentsInLast24Hours(profile.steamId);
+        let commentsAvailable = Math.max(10 - commentsInLast24Hours, 0);
         log(`[${profile.username}] pode fazer mais ${commentsAvailable} comentários nas próximas 24 horas.`);
     }
     log('Verificação de disponibilidade de comentários concluída');
