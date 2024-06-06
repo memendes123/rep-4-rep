@@ -13,6 +13,7 @@ class dbWrapper {
         });
 
         await this.createProfilesTable();
+        await this.createCommentsTable();
     }
 
     async createProfilesTable() {
@@ -24,6 +25,16 @@ class dbWrapper {
                 steamId VARCHAR UNIQUE,
                 cookies TEXT,
                 lastComment DATETIME
+            )`
+        );
+    }
+
+    async createCommentsTable() {
+        await this.db.exec(
+            `CREATE TABLE IF NOT EXISTS comments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                steamId VARCHAR,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )`
         );
     }
@@ -52,8 +63,16 @@ class dbWrapper {
     }
 
     async updateLastComment(steamId) {
-        const result = await this.db.run(`UPDATE steamprofile SET lastComment=DATETIME('now', 'localtime') WHERE steamId = ?`, [steamId]);
-        return result;
+        await this.db.run(`UPDATE steamprofile SET lastComment=DATETIME('now', 'localtime') WHERE steamId = ?`, [steamId]);
+        await this.db.run(`INSERT INTO comments (steamId) VALUES (?)`, [steamId]);
+    }
+
+    async getCommentsInLast24Hours(steamId) {
+        const result = await this.db.get(
+            `SELECT COUNT(*) as count FROM comments WHERE steamId = ? AND timestamp >= DATETIME('now', '-24 hours')`,
+            [steamId]
+        );
+        return result.count;
     }
 }
 
