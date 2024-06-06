@@ -3,10 +3,11 @@ import 'dotenv/config';
 import steamBot from './src/steamBot.js';
 import db from './src/db.js';
 import api from './src/api.js';
-import { log, showAllProfiles, addProfileSetup, authAllProfiles, removeProfile, autoRun, addProfilesFromFile, addProfilesAndRun, checkCommentAvailability } from './src/util.js';
+import { log, showAllProfiles, addProfileSetup, authAllProfiles, removeProfile, autoRun, addProfilesFromFile, addProfilesAndRun, checkAndSyncProfiles, checkCommentAvailability } from './src/util.js';
 
 var argv = parseArgs(process.argv.slice(2));
 await db.init();
+
 // autoRun:
 //  --run
 
