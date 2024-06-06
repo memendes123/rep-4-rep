@@ -68,6 +68,10 @@ export default (config) => {
             community.setCookies(cookies);
         }
 
+        console.log("Attempting login with parameters:", {
+            accountName, password, authCode, sharedSecret, captcha, cookies
+        });
+
         return new Promise((resolve, reject) => {
             community.login({
                 accountName: accountName,
