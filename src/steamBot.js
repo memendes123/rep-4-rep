@@ -36,6 +36,33 @@ export default (config) => {
         });
     };
 
+    client.postComments = async (account, comments) => {
+        for (let i = 0; i < comments.length; i++) {
+            try {
+                await client.postComment(account.steamId, comments[i]);
+            } catch (error) {
+                console.log(`Error posting comment ${i + 1} for account ${account.name}:`, error);
+                if (error.message.includes('limit reached')) {
+                    console.log(`Account ${account.name} reached comment limit.`);
+                    break;
+                }
+            }
+        }
+    };
+
+    client.processAccounts = async (accounts, comments) => {
+        for (let account of accounts) {
+            await client.steamLogin(account.name, account.password, account.authCode, account.sharedSecret);
+            let loggedIn = await client.isLoggedIn();
+            if (loggedIn) {
+                console.log(`Logged in to account ${account.name}`);
+                await client.postComments(account, comments);
+            } else {
+                console.log(`Failed to log in to account ${account.name}`);
+            }
+        }
+    };
+
     client.steamLogin = async (accountName, password, authCode, sharedSecret, captcha, cookies) => {
         if (cookies) {
             community.setCookies(cookies);
