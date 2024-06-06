@@ -292,7 +292,7 @@ async function addProfileSetup(accountName, password, sharedSecret) {
             attempts++;
             if (error.message.includes('RateLimitExceeded')) {
                 log(`Rate limit exceeded for ${accountName}. Waiting before retrying...`);
-                await sleep(60000); // wait 1 minute before retrying
+                await sleep(30000); // wait 1 minute before retrying
             } else {
                 log(`Error adding profile ${accountName}: ${error.message}`);
                 break;
@@ -356,7 +356,7 @@ async function addProfilesFromFile() {
         }
         
         if (index !== accounts.length - 1) {
-            await sleep(60000); // Add delay to avoid throttling
+            await sleep(30000); // Add delay to avoid throttling
         }
     }
     log('All profiles from file added');
@@ -380,7 +380,7 @@ async function addProfilesAndRun() {
         }
         
         if (index !== accounts.length - 1) {
-            await sleep(60000); // Add delay to avoid throttling
+            await sleep(30000); // Add delay to avoid throttling
         }
     }
     log('All profiles from file added and run completed');
