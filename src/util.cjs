@@ -1,11 +1,11 @@
-import fs from 'fs';
-import db from './db.js';
-import api from './api.js';
-import steamBot from './steamBot.js';
-import { table } from 'table';
-import ReadLine from 'readline';
-import moment from 'moment';
-import 'dotenv/config';
+const fs = require('fs');
+const db = require('./db.cjs'); // Ensure correct import based on your project structure
+const api = require('./api.cjs'); // Ensure correct import based on your project structure
+const steamBot = require('./steamBot.cjs'); // Ensure correct import based on your project structure
+const { table } = require('table');
+const ReadLine = require('readline');
+const moment = require('moment');
+require('dotenv').config();
 
 let rl = ReadLine.createInterface({
     input: process.stdin,
@@ -56,14 +56,14 @@ async function autoRun() {
                 continue;
             } else {
                 await autoRunComments(profile, client, tasks, r4rSteamProfile.id, 10);
-                if (i !== profiles.length-1) {
+                if (i !== profiles.length - 1) {
                     await sleep(process.env.LOGIN_DELAY);
                 }
                 continue;
             }
         } else {
             log(`[${profile.username}] is not ready yet`);
-            log(`[${profile.username}] try again in: ${Math.round(24-hours)} hours`, true);
+            log(`[${profile.username}] try again in: ${Math.round(24 - hours)} hours`, true);
             continue;
         }
     }
@@ -197,7 +197,7 @@ async function authAllProfiles() {
             log(res, true);
         }
 
-        if (i !== profiles.length-1) {
+        if (i !== profiles.length - 1) {
             await sleep(process.env.LOGIN_DELAY);
         }
     }
@@ -292,7 +292,7 @@ async function addProfileSetup(accountName, password, sharedSecret) {
             attempts++;
             if (error.message.includes('RateLimitExceeded')) {
                 log(`Rate limit exceeded for ${accountName}. Waiting before retrying...`);
-                await sleep(30000); // wait 1 minute before retrying
+                await sleep(60000); // wait 1 minute before retrying
             } else {
                 log(`Error adding profile ${accountName}: ${error.message}`);
                 break;
@@ -359,7 +359,7 @@ async function addProfilesFromFile() {
         }
         
         if (index !== accounts.length - 1) {
-            await sleep(30000); // Add delay to avoid throttling
+            await sleep(60000); // Add delay to avoid throttling
         }
     }
     log('All profiles from file added');
@@ -386,7 +386,7 @@ async function addProfilesAndRun() {
         }
         
         if (index !== accounts.length - 1) {
-            await sleep(30000); // Add delay to avoid throttling
+            await sleep(60000); // Add delay to avoid throttling
         }
     }
     log('All profiles from file added and run completed');
@@ -417,4 +417,16 @@ async function checkCommentAvailability() {
     log('Verificação de disponibilidade de comentários concluída');
 }
 
-export { log, statusMessage, showAllProfiles, addProfileSetup, authAllProfiles, removeProfile, autoRun, addProfilesFromFile, addProfilesAndRun, checkAndSyncProfiles, checkCommentAvailability };
+module.exports = { 
+    log, 
+    statusMessage, 
+    showAllProfiles, 
+    addProfileSetup, 
+    authAllProfiles, 
+    removeProfile, 
+    autoRun, 
+    addProfilesFromFile, 
+    addProfilesAndRun, 
+    checkAndSyncProfiles, 
+    checkCommentAvailability 
+};
