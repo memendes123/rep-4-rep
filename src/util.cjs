@@ -102,7 +102,8 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
             completedTasks.add(task.taskId);
             consecutiveFailures = 0; // Reset failures on success
         } catch (err) {
-            log(`[${profile.username}] failed to post comment: ${err.message}`, true);
+            log(`[${profile.username}] failed to post comment: ${err.message}`);
+            log(`Debug Info: TargetSteamProfileId: ${task.targetSteamProfileId}, RequiredCommentText: ${task.requiredCommentText}`);
             consecutiveFailures++;
         }
 
@@ -138,7 +139,8 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
             consecutiveFailures = 0; // Reset failures on success
             attempts = 0; // Reset attempts on success
         } catch (err) {
-            log(`[${profile.username}] failed to post additional comment: ${err.message}`, true);
+            log(`[${profile.username}] failed to post additional comment: ${err.message}`);
+            log(`Debug Info: TargetSteamProfileId: ${targetSteamProfileId}, RandomComment: ${randomComment}`);
             consecutiveFailures++;
             attempts++;
         }
