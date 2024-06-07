@@ -110,15 +110,17 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
 
     while (commentsPosted < maxComments && consecutiveFailures < maxConsecutiveFailures && attempts < maxAttempts) {
         log(`[${profile.username}] Attempting additional comment ${commentsPosted + 1}/${maxComments}`);
-        const availableTasks = tasks.filter(t => !completedTasks.has(t.taskId));
-        if (availableTasks.length === 0) {
+        let additionalTasks = await api.getTasks(authorSteamProfileId); // Fetch new tasks to ensure updated list
+        additionalTasks = additionalTasks.filter(t => !completedTasks.has(t.taskId));
+
+        if (additionalTasks.length === 0) {
             log(`[${profile.username}] No valid tasks available for additional comments. Retrying... (${attempts + 1}/${maxAttempts})`, true);
             attempts++;
             await sleep(process.env.COMMENT_DELAY);
             continue;
         }
 
-        for (const randomTask of availableTasks) {
+        for (const randomTask of additionalTasks) {
             if (!randomTask || !randomTask.requiredCommentText || !randomTask.targetSteamProfileId) {
                 log(`[${profile.username}] Invalid random task for additional comments. Skipping...`, true);
                 continue;
@@ -133,6 +135,7 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
                 log(`[${profile.username}] additional comment posted successfully`, true);
                 consecutiveFailures = 0; // Reset failures on success
                 attempts = 0; // Reset attempts on success
+                completedTasks.add(randomTask.taskId); // Mark task as completed
                 break; // Exit the for loop to attempt the next comment
             } catch (err) {
                 log(`[${profile.username}] failed to post additional comment: ${err.message}`);
@@ -228,10 +231,10 @@ async function syncWithRep4rep(client) {
 
     if (!Array.isArray(steamProfiles)) {
         console.error("steamProfiles is not an array");
-        return "steamProfiles is not an array"; // Or handle the error appropriately
+        return "steamProfiles is not an array"; // Or handle the error accordingly
     }
 
-    const exists = steamProfiles.some(steamProfile => steamProfile.steamId == steamId);
+    let exists = steamProfiles.some(steamProfile => steamProfile.steamId == steamId);
 
     if (!exists) {
         let res;
