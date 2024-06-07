@@ -1,7 +1,7 @@
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
+const sqlite3 = require('sqlite3');
+const { open } = require('sqlite');
 
-class dbWrapper {
+class DbWrapper {
     constructor() {
         this.db = null;
     }
@@ -76,5 +76,4 @@ class dbWrapper {
     }
 }
 
-const instance = new dbWrapper();
-export { instance as default };
+module.exports = new DbWrapper();
