@@ -23,17 +23,27 @@ class ApiWrapper {
     }
 
     async fetchWithJsonCheck(url, options) {
-        // Ensure fetch and FormData are available
         while (!fetch || !FormData) {
             await new Promise(resolve => setTimeout(resolve, 10));
         }
-        const response = await fetch(url, options);
-        const text = await response.text();
-        try {
-            return JSON.parse(text);
-        } catch (error) {
-            console.error("Failed to parse JSON response:", text);
-            throw new Error("Failed to parse JSON response");
+        let attempts = 0;
+        const maxAttempts = 3;
+        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+        
+        while (attempts < maxAttempts) {
+            try {
+                const response = await fetch(url, options);
+                const text = await response.text();
+                return JSON.parse(text);
+            } catch (error) {
+                if (attempts < maxAttempts - 1) {
+                    await delay((attempts + 1) * 1000);
+                    attempts++;
+                } else {
+                    console.error("Failed to parse JSON response:", text);
+                    throw new Error("Failed to parse JSON response");
+                }
+            }
         }
     }
 
