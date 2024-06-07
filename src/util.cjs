@@ -1,7 +1,7 @@
 const fs = require('fs');
-const db = require('./db.cjs'); // Ensure correct import based on your project structure
-const api = require('./api.cjs'); // Ensure correct import based on your project structure
-const steamBot = require('./steamBot.cjs'); // Ensure correct import based on your project structure
+const db = require('./db.cjs');
+const api = require('./api.cjs');
+const steamBot = require('./steamBot.cjs');
 const { table } = require('table');
 const ReadLine = require('readline');
 const moment = require('moment');
@@ -220,15 +220,14 @@ async function syncWithRep4rep(client) {
 
     try {
         steamProfiles = await api.getSteamProfiles();
-        console.log("steamProfiles:", steamProfiles); // Debugging log
+        console.log("steamProfiles:", steamProfiles); // Add this log to inspect the retrieved profiles
     } catch (error) {
-        console.error("Error fetching steamProfiles:", error);
-        return `Error fetching steamProfiles: ${error.message}`;
+        console.error("Error retrieving steamProfiles:", error);
+        return `Error retrieving steamProfiles: ${error.message}`;
     }
 
-    // Ensure steamProfiles is an array
     if (!Array.isArray(steamProfiles)) {
-        console.error("Error: steamProfiles is not an array");
+        console.error("steamProfiles is not an array");
         return "steamProfiles is not an array"; // Or handle the error appropriately
     }
 
