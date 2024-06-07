@@ -26,12 +26,9 @@ npm install
 3. Create a .env file in the root directory and add your environment variables:
 
 ```bash
-# Rep4Rep.com API key
-REP4REP_KEY = "your_rep4_rep_key "
-# Comment Delay (in milliseconds)
-COMMENT_DELAY = "13000"
-# Login Delay (in milliseconds)
-LOGIN_DELAY = "39000"
+LOGIN_DELAY=your_rep4_rep_key 
+LOGIN_DELAY=60000
+COMMENT_DELAY=30000
 ```
 An API token can be obtained [here](https://rep4rep.com/user/settings/).
 > Never share your rep4rep apiToken with anyone.
@@ -41,63 +38,63 @@ An API token can be obtained [here](https://rep4rep.com/user/settings/).
 ```bash
 username1:password1:shared_secret1
 username2:password2:shared_secret2
-username3:password3:shared_secret3
+
 ```
 
 # Usage
 ## Add Profiles from File
 To add profiles from the `accounts.txt` file:
 ```bash
-node main.js --add-profiles-from-file
+node main.cjs --add-profiles-from-file
 ```
 
 ## Add Profiles from File and Run Tasks Sequentially
 To add profiles from the `accounts.txt` file and run tasks sequentially:
 ```bash
-node main.js --add-profiles-and-run
+node main.cjs --add-profiles-and-run
 ```
 
 ## Other Commands
 Run tasks for all profiles:
 ```bash
-node main.js --run
+node main.cjs --run
 ```
 
 List all profiles:
 
 ```bash
-node main.js --profiles
+node main.cjs --profiles
 ```
 
 Authenticate all profiles:
 ```bash
-node main.js --auth-profiles
-```
-
-check if profiles are added and synchronized with rep4rep
-```bash
-node main.js --check-and-sync-profiles
-```
-
-Verify is accounts can comment:
-```bash
-node main.js --check-comment-availability
+node main.cjs --auth-profiles
 ```
 
 Add a single profile:
 ```bash
-node main.js --add-profile username:password:shared_secret
+node main.cjs --add-profile username:password:shared_secret
+```
+
+Verify is accounts can comment:
+```bash
+node main.cjs --check-comment-availability
 ```
 
 Remove a profile:
 ```bash
-node main.js --remove-profile username
+node main.cjs --remove-profile username
+```
+
+check if profiles are added and synchronized with rep4rep:
+```bash
+node main.cjs --check-and-sync-profiles
 ```
 
 ## License
 This project is licensed under the ISC License.
 ```bash
-You can copy these contents into your `package.json` and `README.md` files, respectively. This setup should work smoothly on another computer with the updated instructions.
+You can copy these contents into your `package.cjson` and `README.md` files, respectively. This setup should work smoothly on another computer with the updated instructions.
 ```
 # Mantendo o Bot Sempre Online com PM2
 Para garantir que seu bot Rep4Rep fique sempre online, utilizaremos o PM2 para gerenciar os processos. Siga os passos abaixo para configurar e gerenciar seu bot com PM2.
@@ -113,36 +110,37 @@ Use os seguintes comandos para iniciar diferentes funcionalidades do seu bot com
 
 Adicionar Perfis a partir do Arquivo:
 ```bash
-pm2 start main.js --name rep4rep-add-profiles-from-file -- --add-profiles-from-file
+pm2 start main.cjs --name rep4rep-add-profiles-from-file -- --add-profiles-from-file
+
 ```
 Adicionar Perfis e Executar Tarefas Sequencialmente:
 ```bash
-pm2 start main.js --name rep4rep-add-profiles-and-run -- --add-profiles-and-run
+pm2 start main.cjs --name rep4rep-add-profiles-and-run -- --add-profiles-and-run
 ```
 
 Executar Tarefas para Todos os Perfis:
 ```bash
-pm2 start main.js --name rep4rep-run -- --run
+pm2 start main.cjs --name rep4rep-run -- --run
 ```
 
 Listar Todos os Perfis:
 ```bash
-pm2 start main.js --name rep4rep-profiles -- --profiles
+pm2 start main.cjs --name rep4rep-profiles -- --profiles
 ```
 
 Autenticar Todos os Perfis:
 ```bash
-pm2 start main.js --name rep4rep-auth-profiles -- --auth-profiles
+pm2 start main.cjs --name rep4rep-auth-profiles -- --auth-profiles
 ```
 
 Adicionar um Único Perfil:
 ```bash
-pm2 start main.js --name rep4rep-add-profile -- --add-profile username:password:shared_secret
+pm2 start main.cjs --name rep4rep-add-profile -- --add-profile username:password:shared_secret
 ```
 
 Remover um Perfil:
 ```bash
-pm2 start main.js --name rep4rep-remove-profile -- --remove-profile username
+pm2 start main.cjs --name rep4rep-remove-profile -- --remove-profile username
 ```
 
 # Gerenciamento dos Processos com PM2
@@ -155,22 +153,22 @@ pm2 status
 
 Visualizar os logs de um processo específico:
 ```bash
-pm2 logs main.js --name rep4rep <option>
+pm2 logs main.cjs --name rep4rep <option>
 ```
 
 Parar um processo específico:
 ```bash
-pm2 stop main.js --name rep4rep <option>
+pm2 stop main.cjs --name rep4rep <option>
 ```
 
 Reiniciar um processo específico:
 ```bash
-pm2 restart main.js --name rep4rep <option>
+pm2 restart main.cjs --name rep4rep <option>
 ```
 
 Deletar um processo específico:
 ```bash
-pm2 delete main.js --name rep4rep <option>
+pm2 delete main.cjs --name rep4rep <option>
 ```
 
 Salvar a configuração do PM2:
