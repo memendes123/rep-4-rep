@@ -77,6 +77,10 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
     let consecutiveFailures = 0;
     const maxConsecutiveFailures = 3;
     let completedTasks = new Set();
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    log(`[${profile.username}] Starting autoRunComments with ${tasks.length} tasks`);
 
     while (commentsPosted < maxComments && taskIndex < tasks.length && consecutiveFailures < maxConsecutiveFailures) {
         const task = tasks[taskIndex];
@@ -106,12 +110,14 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
         taskIndex++;
     }
 
-    while (commentsPosted < maxComments && consecutiveFailures < maxConsecutiveFailures) {
+    while (commentsPosted < maxComments && consecutiveFailures < maxConsecutiveFailures && attempts < maxAttempts) {
         log(`[${profile.username}] Attempting additional comment ${commentsPosted + 1}/${maxComments}`);
         const availableTasks = tasks.filter(t => !completedTasks.has(t.taskId));
         if (availableTasks.length === 0) {
             log(`[${profile.username}] No valid tasks available for additional comments. Skipping...`, true);
-            break;
+            attempts++;
+            await sleep(process.env.COMMENT_DELAY);
+            continue;
         }
 
         const randomTask = availableTasks[Math.floor(Math.random() * availableTasks.length)];
@@ -128,14 +134,16 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
             commentsPosted++;
             log(`[${profile.username}] additional comment posted successfully`, true);
             consecutiveFailures = 0; // Reset failures on success
+            attempts = 0; // Reset attempts on success
         } catch (err) {
             log(`[${profile.username}] failed to post additional comment: ${err.message}`, true);
             consecutiveFailures++;
+            attempts++;
         }
         await sleep(process.env.COMMENT_DELAY);
     }
 
-    log(`[${profile.username}] done with posting comments`, true);
+    log(`[${profile.username}] done with posting comments. Total comments posted: ${commentsPosted}`, true);
 }
 
 async function loginWithRetries(client, profile, maxRetries = 3) {
@@ -340,7 +348,7 @@ async function promptForCode(username, client) {
 }
 
 async function addProfilesFromFile() {
-    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\n').filter(Boolean);
+    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\\n').filter(Boolean);
     let accountCount = accounts.length;
     log(`Starting to add ${accountCount} profiles from file.`);
 
@@ -366,7 +374,7 @@ async function addProfilesFromFile() {
 }
 
 async function addProfilesAndRun() {
-    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\n').filter(Boolean);
+    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\\n').filter(Boolean);
     let accountCount = accounts.length;
     log(`Starting to add and run ${accountCount} profiles from file.`);
 
