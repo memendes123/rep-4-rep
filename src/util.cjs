@@ -73,7 +73,6 @@ async function autoRun() {
 
 async function autoRunComments(profile, client, tasks, authorSteamProfileId, maxComments = 10) {
     let commentsPosted = 0;
-    let taskIndex = 0;
     let consecutiveFailures = 0;
     const maxConsecutiveFailures = 3;
     let completedTasks = new Set();
@@ -82,11 +81,10 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
 
     log(`[${profile.username}] Starting autoRunComments with ${tasks.length} tasks`);
 
-    while (commentsPosted < maxComments && taskIndex < tasks.length && consecutiveFailures < maxConsecutiveFailures) {
+    for (let taskIndex = 0; commentsPosted < maxComments && taskIndex < tasks.length && consecutiveFailures < maxConsecutiveFailures; taskIndex++) {
         const task = tasks[taskIndex];
         if (!task || !task.requiredCommentText || !task.targetSteamProfileName) {
             log(`[${profile.username}] Invalid task data. Skipping...`, true);
-            taskIndex++;
             continue;
         }
 
@@ -108,7 +106,6 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
         }
 
         await sleep(process.env.COMMENT_DELAY);
-        taskIndex++;
     }
 
     while (commentsPosted < maxComments && consecutiveFailures < maxConsecutiveFailures && attempts < maxAttempts) {
@@ -121,30 +118,30 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
             continue;
         }
 
-        const randomTask = availableTasks[Math.floor(Math.random() * availableTasks.length)];
-        if (!randomTask || !randomTask.requiredCommentText || !randomTask.targetSteamProfileId) {
-            log(`[${profile.username}] Invalid random task for additional comments. Retrying... (${attempts + 1}/${maxAttempts})`, true);
-            attempts++;
-            await sleep(process.env.COMMENT_DELAY);
-            continue;
-        }
+        for (const randomTask of availableTasks) {
+            if (!randomTask || !randomTask.requiredCommentText || !randomTask.targetSteamProfileId) {
+                log(`[${profile.username}] Invalid random task for additional comments. Skipping...`, true);
+                continue;
+            }
 
-        const randomComment = randomTask.requiredCommentText;
-        const targetSteamProfileId = randomTask.targetSteamProfileId;
-        try {
-            await client.postComment(targetSteamProfileId, randomComment);
-            await api.completeTask(randomTask.taskId, randomTask.requiredCommentId, authorSteamProfileId); // Mark additional comments as completed
-            commentsPosted++;
-            log(`[${profile.username}] additional comment posted successfully`, true);
-            consecutiveFailures = 0; // Reset failures on success
-            attempts = 0; // Reset attempts on success
-        } catch (err) {
-            log(`[${profile.username}] failed to post additional comment: ${err.message}`);
-            log(`Debug Info: TargetSteamProfileId: ${targetSteamProfileId}, RandomComment: ${randomComment}`);
-            consecutiveFailures++;
-            attempts++;
+            const randomComment = randomTask.requiredCommentText;
+            const targetSteamProfileId = randomTask.targetSteamProfileId;
+            try {
+                await client.postComment(targetSteamProfileId, randomComment);
+                await api.completeTask(randomTask.taskId, randomTask.requiredCommentId, authorSteamProfileId); // Mark additional comments as completed
+                commentsPosted++;
+                log(`[${profile.username}] additional comment posted successfully`, true);
+                consecutiveFailures = 0; // Reset failures on success
+                attempts = 0; // Reset attempts on success
+                break; // Exit the for loop to attempt the next comment
+            } catch (err) {
+                log(`[${profile.username}] failed to post additional comment: ${err.message}`);
+                log(`Debug Info: TargetSteamProfileId: ${targetSteamProfileId}, RandomComment: ${randomComment}`);
+                consecutiveFailures++;
+            }
+            await sleep(process.env.COMMENT_DELAY);
         }
-        await sleep(process.env.COMMENT_DELAY);
+        attempts++;
     }
 
     log(`[${profile.username}] done with posting comments. Total comments posted: ${commentsPosted}`, true);
