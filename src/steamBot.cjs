@@ -1,8 +1,8 @@
-import SteamCommunity from 'steamcommunity';
-import steamTotp from 'steam-totp';
-import db from './db.js';
+const SteamCommunity = require('steamcommunity');
+const steamTotp = require('steam-totp');
+const db = require('./db.cjs');
 
-export default (config) => {
+module.exports = (config) => {
     const client = {
         status: 0,
         captchaUrl: null,
