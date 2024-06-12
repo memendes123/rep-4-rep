@@ -28,42 +28,55 @@ function log(message, emptyLine = false) {
 }
 
 async function autoRun() {
+    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\n').filter(Boolean);
     let profiles = await db.getAllProfiles();
     let r4rProfiles = await api.getSteamProfiles();
 
-    for (const [i, profile] of profiles.entries()) {
-        log(`Attempting to leave comments from: ${profile.username} (${profile.steamId})`);
+    for (const [i, account] of accounts.entries()) {
+        const [username, password, sharedSecret] = account.split(':');
+        if (!username || !password || !sharedSecret) {
+            log(`Invalid account format for ${account}`);
+            continue;
+        }
+        
+        log(`Attempting to leave comments from: ${username}`);
+
+        let profile = profiles.find(p => p.username === username);
+        if (!profile) {
+            log(`Profile not found in database for username: ${username}`);
+            continue;
+        }
 
         let hours = moment().diff(moment(profile.lastComment), 'hours');
         if (!profile.lastComment || hours >= 24) {
             let r4rSteamProfile = r4rProfiles.find(r4rProfile => r4rProfile['steamId'] == profile.steamId);
             if (!r4rSteamProfile) {
-                log(`[${profile.username}] steamProfile doesn't exist on rep4rep`);
+                log(`[${username}] steamProfile doesn't exist on rep4rep`);
                 log(`Try syncing it with --auth-profiles`, true);
                 continue;
             }
 
             let tasks = await api.getTasks(r4rSteamProfile.id);
             if (!tasks || tasks.length === 0) {
-                log(`[${profile.username}] No tasks found for the profile. Skipping...`, true);
+                log(`[${username}] No tasks found for the profile. Skipping...`, true);
                 continue;
             }
 
             let client = steamBot();
-            await loginWithRetries(client, profile);
+            await loginWithRetries(client, username, password, sharedSecret, profile.cookies);
             if (client.status !== 4 && !await client.isLoggedIn()) {
-                log(`[${profile.username}] is logged out. reAuth needed`, true);
+                log(`[${username}] is logged out. reAuth needed`, true);
                 continue;
             } else {
                 await autoRunComments(profile, client, tasks, r4rSteamProfile.id, 10);
-                if (i !== profiles.length - 1) {
+                if (i !== accounts.length - 1) {
                     await sleep(process.env.LOGIN_DELAY);
                 }
                 continue;
             }
         } else {
-            log(`[${profile.username}] is not ready yet`);
-            log(`[${profile.username}] try again in: ${Math.round(24 - hours)} hours`, true);
+            log(`[${username}] is not ready yet`);
+            log(`[${username}] try again in: ${Math.round(24 - hours)} hours`, true);
             continue;
         }
     }
@@ -150,18 +163,19 @@ async function autoRunComments(profile, client, tasks, authorSteamProfileId, max
     log(`[${profile.username}] done with posting comments. Total comments posted: ${commentsPosted}`, true);
 }
 
-async function loginWithRetries(client, profile, maxRetries = 3) {
+async function loginWithRetries(client, username, password, sharedSecret, cookies, maxRetries = 3) {
     let attempts = 0;
     while (attempts < maxRetries) {
         try {
-            await client.steamLogin(profile.username, profile.password, null, profile.sharedSecret, null, JSON.parse(profile.cookies));
+            await client.steamLogin(username, password, null, sharedSecret, null, JSON.parse(cookies));
             if (client.status === 4 || await client.isLoggedIn()) {
-                log(`[${profile.username}] login successful`);
+                log(`[${username}] login successful`);
                 return;
             }
         } catch (error) {
+            log(`[${username}] login attempt ${attempts + 1} failed: ${error.message}`);
             if (error.code === 502) {
-                log(`[${profile.username}] WebAPI error 502. Retrying...`);
+                log(`[${username}] WebAPI error 502. Retrying...`);
                 await sleep(10000); // wait 10 seconds before retrying
             } else {
                 throw error;
@@ -169,7 +183,7 @@ async function loginWithRetries(client, profile, maxRetries = 3) {
         }
         attempts++;
     }
-    throw new Error(`[${profile.username}] login failed after ${maxRetries} attempts.`);
+    throw new Error(`[${username}] login failed after ${maxRetries} attempts.`);
 }
 
 async function sleep(millis) {
@@ -303,7 +317,7 @@ async function addProfileSetup(accountName, password, sharedSecret) {
             attempts++;
             if (error.message.includes('RateLimitExceeded')) {
                 log(`Rate limit exceeded for ${accountName}. Waiting before retrying...`);
-                await sleep(60000); // wait 1 minute before retrying
+                await sleep(30000); // wait 1 minute before retrying
             } else {
                 log(`Error adding profile ${accountName}: ${error.message}`);
                 break;
@@ -350,8 +364,10 @@ async function promptForCode(username, client) {
     return res;
 }
 
+// src/util.cjs
+
 async function addProfilesFromFile() {
-    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\\n').filter(Boolean);
+    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\n').filter(Boolean);
     let accountCount = accounts.length;
     log(`Starting to add ${accountCount} profiles from file.`);
 
@@ -370,14 +386,14 @@ async function addProfilesFromFile() {
         }
         
         if (index !== accounts.length - 1) {
-            await sleep(60000); // Add delay to avoid throttling
+            await sleep(30000); // Add delay to avoid throttling
         }
     }
     log('All profiles from file added');
 }
 
 async function addProfilesAndRun() {
-    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\\n').filter(Boolean);
+    const accounts = fs.readFileSync('accounts.txt', 'utf-8').split('\n').filter(Boolean);
     let accountCount = accounts.length;
     log(`Starting to add and run ${accountCount} profiles from file.`);
 
@@ -390,14 +406,14 @@ async function addProfilesAndRun() {
                 throw new Error(`Invalid account format for ${account}`);
             }
             await addProfileSetup(username, password, sharedSecret);
-            await autoRun();
+            await autoRun(); // Run tasks for the added profile
             log(`Profile ${username} added and run successfully.`);
         } catch (error) {
             log(`Error adding and running profile ${username}: ${error.message}`);
         }
         
         if (index !== accounts.length - 1) {
-            await sleep(60000); // Add delay to avoid throttling
+            await sleep(30000); // Add delay to avoid throttling
         }
     }
     log('All profiles from file added and run completed');
