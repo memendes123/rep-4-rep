@@ -26,9 +26,9 @@ npm install
 3. Create a .env file in the root directory and add your environment variables:
 
 ```bash
-LOGIN_DELAY=your_rep4_rep_key 
-LOGIN_DELAY=60000
-COMMENT_DELAY=30000
+REP4REP_KEY = "your_rep4_rep_key"
+COMMENT_DELAY = "13000"
+LOGIN_DELAY = "39000"
 ```
 An API token can be obtained [here](https://rep4rep.com/user/settings/).
 > Never share your rep4rep apiToken with anyone.
